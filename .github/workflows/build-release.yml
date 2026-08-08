@@ -53,23 +53,25 @@ jobs:
           -r win-x64
           -p:Platform=x64
           -p:AppxPackageSigningEnabled=true
-          -p:SelfContained=false
+          -p:AppxPackage=true
           --no-restore
 
       - name: 查找 MSIX
         id: msix
         shell: pwsh
         run: |
-          $pkgs = Get-ChildItem -Recurse -Path iFunds/bin -Filter "*.msix" |
+          $pkgs = Get-ChildItem -Recurse -Path iFunds/bin -Include "*.msix","*.msixbundle" |
                   Where-Object { $_.Name -notlike "*CodeSign*" } |
                   Sort-Object LastWriteTime -Descending
-          foreach ($p in $pkgs) { Write-Host "Found: $($p.FullName)" }
+          if (-not $pkgs) { $pkgs = Get-ChildItem -Recurse -Path iFunds -Filter "*.msix" }
+          foreach ($p in $pkgs) { Write-Host "Found: $($p.FullName) ($($p.Length) bytes)" }
           $best = $pkgs | Select-Object -First 1
           if ($best) {
             Write-Output "path=$($best.FullName)" >> $env:GITHUB_OUTPUT
             Write-Output "name=$($best.Name)" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "No MSIX found!"
+            Write-Host "No MSIX found! Listing bin contents:"
+            Get-ChildItem -Recurse -Path iFunds/bin | Select-Object -First 40 | ForEach-Object { Write-Host $_ }
           }
 
       - name: 发布到 GitHub Release
