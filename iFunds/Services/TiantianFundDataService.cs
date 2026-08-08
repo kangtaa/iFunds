@@ -81,16 +81,16 @@ public class TiantianFundDataService : IFundDataService
 
         // 最近交易日净值
         var last = navList[^1];
-        decimal netValue = last.nav;
-        string netValueDate = last.date.ToString("MM-dd");
+        decimal netValue = last.Item2;
+        string netValueDate = last.Item1.ToString("MM-dd");
 
         // 涨跌幅：最近两日净值变化
         decimal growthRate = 0m;
         if (navList.Count >= 2)
         {
             var prev = navList[^2];
-            if (prev.nav > 0)
-                growthRate = Math.Round((netValue - prev.nav) / prev.nav * 100m, 2);
+            if (prev.Item2 > 0)
+                growthRate = Math.Round((netValue - prev.Item2) / prev.Item2 * 100m, 2);
         }
 
         // 近30日走势序列（百分比）
@@ -121,7 +121,7 @@ public class TiantianFundDataService : IFundDataService
         if (list.Count >= 2)
         {
             var prev = list[^2];
-            if (prev.nav > 0) growthRate = Math.Round((last.nav - prev.nav) / prev.nav * 100m, 2);
+            if (prev.Item2 > 0) growthRate = Math.Round((last.Item2 - prev.Item2) / prev.Item2 * 100m, 2);
         }
 
         var trend = BuildTrendFromNav(list);
@@ -131,10 +131,10 @@ public class TiantianFundDataService : IFundDataService
             Code = code,
             Name = $"基金{code}",
             GrowthRate = growthRate,
-            NetValue = last.nav,
-            NetValueDate = last.date.ToString("MM-dd"),
-            EstimateValue = last.nav,
-            EstimateTime = last.date.ToString("MM-dd"),
+            NetValue = last.Item2,
+            NetValueDate = last.Item1.ToString("MM-dd"),
+            EstimateValue = last.Item2,
+            EstimateTime = last.Item1.ToString("MM-dd"),
             Trend = trend,
             NetValueUpdated = false,
         };
@@ -277,7 +277,7 @@ public class TiantianFundDataService : IFundDataService
                     if (nav > 0) list.Add((date, nav));
                 }
             }
-            list.Sort((a, b) => a.date.CompareTo(b.date));
+            list.Sort((a, b) => a.Item1.CompareTo(b.Item1));
         }
         catch { }
         return list;
@@ -304,10 +304,10 @@ public class TiantianFundDataService : IFundDataService
         if (navList.Count < 2) return new List<decimal>();
 
         var recent = navList.Skip(navList.Count - 30).ToList();
-        var baseNav = recent[0].nav;
+        var baseNav = recent[0].Item2;
         if (baseNav <= 0) return new List<decimal>();
 
-        return recent.Select(h => Math.Round((h.nav - baseNav) / baseNav * 100m, 2)).ToList();
+        return recent.Select(h => Math.Round((h.Item2 - baseNav) / baseNav * 100m, 2)).ToList();
     }
 
     // ── 兜底 ──
