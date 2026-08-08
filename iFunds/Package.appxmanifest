@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap5 rescap">
+
+  <Identity
+    Name="iFunds.App"
+    Publisher="CN=iFunds"
+    Version="1.0.0.0" />
+
+  <Properties>
+    <DisplayName>iFunds</DisplayName>
+    <PublisherDisplayName>iFunds</PublisherDisplayName>
+    <Logo>Package\Images\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="zh-CN" />
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="iFunds"
+        Description="iFunds 基金实时净值"
+        BackgroundColor="transparent"
+        Square150x150Logo="Package\Images\Square150x150Logo.png"
+        Square44x44Logo="Package\Images\Square44x44Logo.png">
+        <uap:DefaultTile
+          Wide310x150Logo="Package\Images\Wide310x150Logo.png"
+          Square310x310Logo="Package\Images\LargeTile.png"
+          Square71x71Logo="Package\Images\SmallTile.png" />
+        <uap:SplashScreen Image="Package\Images\SplashScreen.png" BackgroundColor="#0E0E11" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- 开机自启任务（默认禁用，由设置页开关启用） -->
+        <uap5:Extension Category="windows.startupTask">
+          <uap5:StartupTask
+            TaskId="iFundsStartup"
+            Enabled="false"
+            DisplayName="iFunds" />
+        </uap5:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

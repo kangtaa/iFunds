@@ -1,0 +1,70 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: 还原依赖
+        run: dotnet restore iFunds/iFunds.csproj
+
+      # ── 免安装版（自包含 .exe，解压即用，无需证书） ──
+      - name: 构建自包含包
+        run: >
+          dotnet publish iFunds/iFunds.csproj
+          -c Release
+          -r win-x64
+          -p:Platform=x64
+          -p:WindowsAppSDKSelfContained=true
+          -p:SelfContained=true
+          --no-restore
+
+      - name: 打包 zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/* `
+                           -DestinationPath iFunds_portable_x64.zip
+
+      # ── MSIX 安装版（可选，需要安装证书） ──
+      - name: 构建 MSIX
+        run: >
+          dotnet publish iFunds/iFunds.csproj
+          -c Release
+          -r win-x64
+          -p:Platform=x64
+          -p:AppxPackageSigningEnabled=true
+          --no-restore
+
+      - name: 查找 MSIX
+        id: msix
+        shell: pwsh
+        run: |
+          $pkg = Get-ChildItem -Recurse -Path iFunds/bin -Filter "*.msix" |
+                 Where-Object { $_.Name -notlike "*CodeSign*" } |
+                 Select-Object -First 1
+          if ($pkg) {
+            Write-Output "path=$($pkg.FullName)" >> $env:GITHUB_OUTPUT
+            Write-Output "name=$($pkg.Name)" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            iFunds_portable_x64.zip
+            ${{ steps.msix.outputs.path }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true

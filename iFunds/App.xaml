@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="iFunds.App"
+    RequestedTheme="Dark"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- ===== Linear 深色调色板 ===== -->
+            <Color x:Key="LinearBgColor">#0E0E11</Color>
+            <Color x:Key="LinearSurfaceColor">#191A20</Color>
+            <Color x:Key="LinearSurfaceHoverColor">#21222A</Color>
+            <Color x:Key="LinearBorderColor">#262830</Color>
+            <Color x:Key="LinearAccentColor">#5E6AD2</Color>
+            <Color x:Key="LinearAccentHoverColor">#6E79DB</Color>
+            <Color x:Key="LinearTextPrimaryColor">#EDEEF0</Color>
+            <Color x:Key="LinearTextSecondaryColor">#B4B8BF</Color>
+            <Color x:Key="LinearTextTertiaryColor">#6E7178</Color>
+
+            <SolidColorBrush x:Key="LinearBg" Color="{StaticResource LinearBgColor}" />
+            <SolidColorBrush x:Key="LinearSurface" Color="{StaticResource LinearSurfaceColor}" />
+            <SolidColorBrush x:Key="LinearBorder" Color="{StaticResource LinearBorderColor}" />
+            <SolidColorBrush x:Key="LinearAccent" Color="{StaticResource LinearAccentColor}" />
+            <SolidColorBrush x:Key="LinearTextPrimary" Color="{StaticResource LinearTextPrimaryColor}" />
+            <SolidColorBrush x:Key="LinearTextSecondary" Color="{StaticResource LinearTextSecondaryColor}" />
+            <SolidColorBrush x:Key="LinearTextTertiary" Color="{StaticResource LinearTextTertiaryColor}" />
+            <SolidColorBrush x:Key="LinearHoverBrush" Color="{StaticResource LinearSurfaceHoverColor}" />
+
+            <!-- 左侧导航项样式 -->
+            <Style x:Key="NavItemStyle" TargetType="RadioButton">
+                <Setter Property="Foreground" Value="{StaticResource LinearTextSecondary}" />
+                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="Root" Background="Transparent" CornerRadius="6"
+                                    Padding="10,8">
+                                <ContentPresenter x:Name="Content"
+                                                  Content="{TemplateBinding Content}"
+                                                  Foreground="{TemplateBinding Foreground}"
+                                                  VerticalContentAlignment="Center"
+                                                  VerticalAlignment="Center" />
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{StaticResource LinearHoverBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{StaticResource LinearHoverBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="CheckStates">
+                                        <VisualState x:Name="Checked">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{StaticResource LinearHoverBrush}" />
+                                                <Setter Target="Content.Foreground" Value="{StaticResource LinearTextPrimary}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Unchecked" />
+                                        <VisualState x:Name="Indeterminate" />
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="StatCard" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource LinearSurface}" />
+                <Setter Property="BorderBrush" Value="{StaticResource LinearBorder}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="9" />
+                <Setter Property="Padding" Value="14,13" />
+            </Style>
+
+            <Style x:Key="SectionCard" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource LinearSurface}" />
+                <Setter Property="BorderBrush" Value="{StaticResource LinearBorder}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="11" />
+                <Setter Property="Padding" Value="16" />
+            </Style>
+
+            <Style x:Key="PeriodToggle" TargetType="RadioButton">
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="RadioButton">
+                            <Border x:Name="Root" Background="#1E1F26"
+                                    CornerRadius="6" Padding="10,4">
+                                <ContentPresenter x:Name="Content" Content="{TemplateBinding Content}"
+                                                  Foreground="{StaticResource LinearTextSecondary}" />
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CheckStates">
+                                        <VisualState x:Name="Checked">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{StaticResource LinearAccent}" />
+                                                <Setter Target="Content.Foreground" Value="White" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Unchecked" />
+                                        <VisualState x:Name="Indeterminate" />
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
