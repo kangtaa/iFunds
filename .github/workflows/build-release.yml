@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -21,7 +24,6 @@ jobs:
       - name: 还原依赖
         run: dotnet restore iFunds/iFunds.csproj
 
-      # ── 免安装版（自包含 .exe，解压即用，无需证书） ──
       - name: 构建自包含包
         run: >
           dotnet publish iFunds/iFunds.csproj
@@ -38,7 +40,6 @@ jobs:
           Compress-Archive -Path iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/* `
                            -DestinationPath iFunds_portable_x64.zip
 
-      # ── MSIX 安装版（可选，需要安装证书） ──
       - name: 构建 MSIX
         run: >
           dotnet publish iFunds/iFunds.csproj
