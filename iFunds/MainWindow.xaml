@@ -11,7 +11,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="0.2*" MinWidth="140" MaxWidth="220" />
+            <ColumnDefinition Width="0.15*" MinWidth="100" MaxWidth="160" />
             <ColumnDefinition Width="0.8*" />
         </Grid.ColumnDefinitions>
 
@@ -31,29 +31,88 @@
                            VerticalAlignment="Center" />
             </StackPanel>
 
-            <StackPanel Grid.Row="1" Padding="12,4" Spacing="4">
+            <StackPanel Grid.Row="1" Padding="12,4" Spacing="2">
                 <RadioButton x:Name="NavDashboard" Style="{StaticResource NavItemStyle}"
                              GroupName="nav" IsChecked="True" Tag="dashboard" Checked="OnNavChecked">
-                    <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE80F;" FontSize="16" Foreground="#E5484D" VerticalAlignment="Center" />
-                        <TextBlock Text="首页" VerticalAlignment="Center" />
-                    </StackPanel>
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Foreground="#E5484D"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="首页" VerticalAlignment="Center" />
+                    </Grid>
                 </RadioButton>
                 <RadioButton Style="{StaticResource NavItemStyle}" GroupName="nav" Tag="funds" Checked="OnNavChecked">
-                    <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE8FD;" FontSize="16" Foreground="#E5484D" VerticalAlignment="Center" />
-                        <TextBlock Text="基金" VerticalAlignment="Center" />
-                    </StackPanel>
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE8FD;" FontSize="16" Foreground="#E5484D"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="基金" VerticalAlignment="Center" />
+                    </Grid>
+                </RadioButton>
+                <RadioButton Style="{StaticResource NavItemStyle}" GroupName="nav" Tag="market" Checked="OnNavChecked">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE8D5;" FontSize="16" Foreground="#5E6AD2"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="行情" VerticalAlignment="Center" />
+                    </Grid>
+                </RadioButton>
+                <RadioButton Style="{StaticResource NavItemStyle}" GroupName="nav" Tag="holdings" Checked="OnNavChecked">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE7C1;" FontSize="16" Foreground="#5E6AD2"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="持仓" VerticalAlignment="Center" />
+                    </Grid>
                 </RadioButton>
             </StackPanel>
 
-            <StackPanel Grid.Row="2" Padding="12,8,12,18" Spacing="4">
+            <StackPanel Grid.Row="2" Padding="12,4,12,18" Spacing="2">
                 <Border Height="1" Background="{StaticResource LinearBorder}" Margin="6,0,6,8" />
+                <RadioButton Style="{StaticResource NavItemStyle}" GroupName="nav" Tag="analysis" Checked="OnNavChecked">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE9D2;" FontSize="16" Foreground="#6E7178"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="分析" VerticalAlignment="Center" />
+                    </Grid>
+                </RadioButton>
+                <RadioButton Style="{StaticResource NavItemStyle}" GroupName="nav" Tag="account" Checked="OnNavChecked">
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE77B;" FontSize="16" Foreground="#6E7178"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="账户" VerticalAlignment="Center" />
+                    </Grid>
+                </RadioButton>
                 <RadioButton Style="{StaticResource NavItemStyle}" GroupName="nav" Tag="settings" Checked="OnNavChecked">
-                    <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE713;" FontSize="16" Foreground="#E5484D" VerticalAlignment="Center" />
-                        <TextBlock Text="设置" VerticalAlignment="Center" />
-                    </StackPanel>
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Grid.Column="0" Glyph="&#xE713;" FontSize="16" Foreground="#6E7178"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="设置" VerticalAlignment="Center" />
+                    </Grid>
                 </RadioButton>
             </StackPanel>
         </Grid>

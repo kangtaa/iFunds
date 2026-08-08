@@ -86,9 +86,11 @@ public class TiantianFundDataService : IFundDataService
 
         // 涨跌幅：最近两日净值变化
         decimal growthRate = 0m;
+        decimal prevNetValue = netValue;
         if (navList.Count >= 2)
         {
             var prev = navList[^2];
+            prevNetValue = prev.Item2;
             if (prev.Item2 > 0)
                 growthRate = Math.Round((netValue - prev.Item2) / prev.Item2 * 100m, 2);
         }
@@ -102,6 +104,7 @@ public class TiantianFundDataService : IFundDataService
             Name = name,
             GrowthRate = growthRate,
             NetValue = netValue,
+            PrevNetValue = prevNetValue,
             NetValueDate = netValueDate,
             EstimateValue = netValue,
             EstimateTime = netValueDate,
@@ -118,9 +121,11 @@ public class TiantianFundDataService : IFundDataService
 
         var last = list[^1];
         decimal growthRate = 0m;
+        decimal prevNetValue = last.Item2;
         if (list.Count >= 2)
         {
             var prev = list[^2];
+            prevNetValue = prev.Item2;
             if (prev.Item2 > 0) growthRate = Math.Round((last.Item2 - prev.Item2) / prev.Item2 * 100m, 2);
         }
 
@@ -132,6 +137,7 @@ public class TiantianFundDataService : IFundDataService
             Name = $"基金{code}",
             GrowthRate = growthRate,
             NetValue = last.Item2,
+            PrevNetValue = prevNetValue,
             NetValueDate = last.Item1.ToString("MM-dd"),
             EstimateValue = last.Item2,
             EstimateTime = last.Item1.ToString("MM-dd"),

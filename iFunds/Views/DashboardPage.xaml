@@ -48,7 +48,7 @@
             <Border Grid.Column="0" Style="{StaticResource StatCard}">
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="今日收益" FontSize="12" Opacity="0.55" VerticalAlignment="Center" />
+                        <TextBlock Text="{x:Bind ViewModel.ProfitLabel, Mode=OneWay}" FontSize="12" Opacity="0.55" VerticalAlignment="Center" />
                         <TextBlock Text="{x:Bind ViewModel.TodayRateText, Mode=OneWay}" FontSize="11"
                                    Foreground="{StaticResource LinearTextTertiary}" VerticalAlignment="Center" />
                     </StackPanel>

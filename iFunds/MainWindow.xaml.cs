@@ -79,6 +79,10 @@ public sealed partial class MainWindow : Window
         {
             case "dashboard": ContentFrame.Navigate(typeof(DashboardPage)); break;
             case "funds": ContentFrame.Navigate(typeof(FundsPage)); break;
+            case "market": ContentFrame.Navigate(typeof(PlaceholderPage), "行情"); break;
+            case "holdings": ContentFrame.Navigate(typeof(PlaceholderPage), "持仓"); break;
+            case "analysis": ContentFrame.Navigate(typeof(PlaceholderPage), "分析"); break;
+            case "account": ContentFrame.Navigate(typeof(PlaceholderPage), "账户"); break;
             case "settings": ContentFrame.Navigate(typeof(SettingsPage)); break;
         }
     }

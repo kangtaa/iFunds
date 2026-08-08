@@ -18,6 +18,14 @@ public partial class DashboardViewModel : ObservableObject
 
     [ObservableProperty] private bool _isRefreshing;
     [ObservableProperty] private string _refreshTime = "--:--:--";
+    [ObservableProperty] private string _profitLabel = "今日收益";
+
+    private void UpdateProfitLabel()
+    {
+        var now = DateTime.Now;
+        bool isTradingDay = now.DayOfWeek is >= DayOfWeek.Monday and <= DayOfWeek.Friday;
+        ProfitLabel = (isTradingDay && now.Hour >= 15) ? "今日收益" : "昨日收益";
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TotalProfitText))]
@@ -91,6 +99,7 @@ public partial class DashboardViewModel : ObservableObject
     public DashboardViewModel()
     {
         HideAmounts = _state.Settings.HideAmounts;
+        UpdateProfitLabel();
         LoadHeat(AppState.HeatPeriod.Day);
     }
 
@@ -125,6 +134,7 @@ public partial class DashboardViewModel : ObservableObject
             WatchCount = Funds.Count;
             AlertCount = _state.AlertRules.Count;
             RefreshTime = DateTime.Now.ToString("HH:mm:ss");
+            UpdateProfitLabel();
             Services.AlertService.CheckAndNotify();
             App.RefreshWidget();
 

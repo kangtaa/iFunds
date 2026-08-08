@@ -28,6 +28,11 @@ public partial class Fund : ObservableObject
     [NotifyPropertyChangedFor(nameof(HoldingProfitRate))]
     private decimal _netValue;
 
+    /// <summary>前一日单位净值（用于计算真实昨日收益）</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TodayProfit))]
+    private decimal _prevNetValue;
+
     /// <summary>净值日期，如 06-03</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(NetValueText))]
@@ -82,7 +87,7 @@ public partial class Fund : ObservableObject
     // ── 实时涨跌 ──
     public string GrowthText => (GrowthRate >= 0 ? "+" : "") + GrowthRate.ToString("0.00") + "%";
     public bool IsUp => GrowthRate >= 0;
-    public decimal TodayProfit => Shares * NetValue * (GrowthRate / 100m);
+    public decimal TodayProfit => Shares * PrevNetValue * (GrowthRate / 100m);
 
     // ── 净值 / 持仓派生字段 ──
     public string NetValueText => NetValue.ToString("0.0000") + (string.IsNullOrEmpty(NetValueDate) ? "" : $"（{NetValueDate}）");
