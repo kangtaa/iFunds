@@ -24,63 +24,63 @@ jobs:
       - name: 还原依赖
         run: dotnet restore iFunds/iFunds.csproj
 
-      # ── Step 1: 自包含免安装包 ──
-      - name: 构建自包含包
+      # ── 自包含构建 ──
+      - name: 构建
         run: >
           dotnet publish iFunds/iFunds.csproj
           -c Release
           -r win-x64
           -p:Platform=x64
-          -p:WindowsAppSDKSelfContained=true
           -p:SelfContained=true
+          -p:WindowsAppSDKSelfContained=true
           --no-restore
 
-      - name: 打包 zip
+      - name: 打包便携版 zip
         shell: pwsh
         run: |
           Compress-Archive -Path iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/* `
                            -DestinationPath iFunds_portable_x64.zip
 
-      # 清理后构建 MSIX，避免两次 publish 相互干扰
-      - name: 清理
-        run: dotnet clean iFunds/iFunds.csproj -c Release
+      # ── Inno Setup 安装包 ──
+      - name: 安装 Inno Setup
+        run: choco install innosetup -y --no-progress
 
-      # ── Step 2: MSIX 安装包 ──
-      - name: 构建 MSIX
-        run: >
-          dotnet publish iFunds/iFunds.csproj
-          -c Release
-          -r win-x64
-          -p:Platform=x64
-          -p:AppxPackageSigningEnabled=true
-          -p:AppxPackage=true
-          -p:SelfContained=true
-          -p:WindowsAppSDKSelfContained=true
-          --no-restore
-
-      - name: 查找 MSIX
-        id: msix
+      - name: 提取版本号
+        id: version
         shell: pwsh
         run: |
-          $pkgs = Get-ChildItem -Recurse -Path iFunds/bin -Include "*.msix","*.msixbundle" |
-                  Where-Object { $_.Name -notlike "*CodeSign*" } |
-                  Sort-Object LastWriteTime -Descending
-          if (-not $pkgs) { $pkgs = Get-ChildItem -Recurse -Path iFunds -Filter "*.msix" }
-          foreach ($p in $pkgs) { Write-Host "Found: $($p.FullName) ($($p.Length) bytes)" }
-          $best = $pkgs | Select-Object -First 1
-          if ($best) {
-            Write-Output "path=$($best.FullName)" >> $env:GITHUB_OUTPUT
-            Write-Output "name=$($best.Name)" >> $env:GITHUB_OUTPUT
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^v', ''
+          Write-Output "ver=$ver" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $ver"
+
+      - name: 构建安装包
+        shell: pwsh
+        run: |
+          $publishDir = "iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish"
+          iscc /Qp installer.iss /DMyAppVersion="${{ steps.version.outputs.ver }}" /O"..\..\..\..\" /F"iFunds_Setup_x64"
+        working-directory: iFunds\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64
+
+      - name: 验证安装包
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Path iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64 -Filter "iFunds_Setup*.exe" | Select-Object -First 1
+          if ($setup) {
+            $sizeMB = [math]::Round($setup.Length / 1MB, 1)
+            Write-Host "Installer: $($setup.Name) ($sizeMB MB)"
+            Write-Output "path=$($setup.FullName)" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "No MSIX found! Listing bin contents:"
-            Get-ChildItem -Recurse -Path iFunds/bin | Select-Object -First 40 | ForEach-Object { Write-Host $_ }
+            Write-Host "Installer not found!"
+            Get-ChildItem -Recurse -Path . -Filter "iFunds_Setup*"
           }
+        id: setup_exe
+        working-directory: iFunds\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64
 
       - name: 发布到 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             iFunds_portable_x64.zip
-            ${{ steps.msix.outputs.path }}
+            iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/iFunds_Setup_x64.exe
           name: ${{ github.ref_name }}
           generate_release_notes: true
