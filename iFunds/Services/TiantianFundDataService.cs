@@ -11,8 +11,9 @@ namespace iFunds.Services;
 
 /// <summary>
 /// 天天基金/东方财富 真实数据。
-/// - 实时估值：fundgz.1234567.com.cn/js/{code}.js （JSONP）
-/// - 历史净值：api.fund.eastmoney.com/f10/lsjz （需 Referer）
+/// - 基金详情 + 历史净值：fund.eastmoney.com/pingzhongdata/{code}.js
+/// - 历史净值备选：api.fund.eastmoney.com/f10/lsjz（需 Referer）
+/// - 排行榜：fund.eastmoney.com/data/rankhandler.aspx
 /// - 搜索：fundsuggest.eastmoney.com
 /// 所有请求带超时与失败回退，单点失败不影响整体。
 /// </summary>
@@ -22,77 +23,153 @@ public class TiantianFundDataService : IFundDataService
 
     public TiantianFundDataService()
     {
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
         _http.DefaultRequestHeaders.Add("User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
     }
 
-    /// <summary>取单只基金的实时估值。withTrend=false 时跳过历史走势请求（榜单批量用，更快）。</summary>
-    public async Task<Fund?> FetchFundAsync(string code) => await FetchFundAsync(code, true);
+    /// <summary>取单只基金信息。从 pingzhongdata 静态文件获取净值、名称、走势。</summary>
+    public async Task<Fund?> FetchFundAsync(string code) => await FetchFundInternalAsync(code);
 
-    public async Task<Fund?> FetchFundAsync(string code, bool withTrend)
+    public async Task<Fund?> FetchFundAsync(string code, bool _) => await FetchFundInternalAsync(code);
+
+    private async Task<Fund?> FetchFundInternalAsync(string code)
     {
         code = code.Trim();
         if (string.IsNullOrEmpty(code)) return null;
 
         try
         {
-            // 实时估值 JSONP：jsonpgz({...});
-            var url = $"https://fundgz.1234567.com.cn/js/{code}.js?rt={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
-            var raw = await _http.GetStringAsync(url);
-            var json = ExtractJsonp(raw);
-            if (json is null) return BuildFallback(code);
-
-            using var doc = JsonDocument.Parse(json);
-            var r = doc.RootElement;
-
-            string name = GetStr(r, "name") ?? $"基金{code}";
-            decimal dwjz = ParseDec(GetStr(r, "dwjz"));   // 上一交易日单位净值
-            decimal gsz = ParseDec(GetStr(r, "gsz"));     // 估算净值
-            decimal gszzl = ParseDec(GetStr(r, "gszzl")); // 估算涨跌幅 %
-            string gztime = GetStr(r, "gztime") ?? "";    // 估值时间 yyyy-MM-dd HH:mm
-            string jzrq = GetStr(r, "jzrq") ?? "";        // 净值日期
-
-            var fund = new Fund
-            {
-                Code = code,
-                Name = name,
-                GrowthRate = gszzl,
-                NetValue = dwjz > 0 ? dwjz : gsz,
-                NetValueDate = FormatDate(jzrq),
-                EstimateValue = gsz,
-                EstimateTime = FormatTime(gztime),
-                NetValueUpdated = false,
-            };
-
-            // 分时走势：仅在需要时拉历史（榜单批量跳过以提速）
-            if (withTrend)
-                fund.Trend = AppendIntradaySample(code, gszzl);
-            return fund;
+            // 优先用 pingzhongdata（含名称、净值历史、收益率等完整信息）
+            var fromPzd = await FetchFromPingzhongAsync(code);
+            if (fromPzd is not null) return fromPzd;
         }
-        catch
+        catch { }
+
+        // pingzhongdata 失败则回退 lsjz（只有净值历史，没有名称）
+        try
         {
-            return BuildFallback(code);
+            return await FetchFromLsjzFallbackAsync(code);
         }
+        catch { }
+
+        return BuildFallback(code);
     }
 
     public async Task<IReadOnlyList<Fund>> RefreshAsync(IEnumerable<string> codes)
     {
-        var tasks = codes.Distinct().Select(FetchFundAsync);
+        var tasks = codes.Distinct().Select(FetchFundInternalAsync);
         var results = await Task.WhenAll(tasks);
         return results.Where(f => f is not null).Select(f => f!).ToList();
     }
 
+    // ── 主数据源：pingzhongdata ──
+
+    /// <summary>从 pingzhongdata 解析基金信息。返回 null 表示失败需回退。</summary>
+    private async Task<Fund?> FetchFromPingzhongAsync(string code)
+    {
+        var url = $"https://fund.eastmoney.com/pingzhongdata/{code}.js?v={DateTime.Now:yyyyMMddHHmmss}";
+        var body = await _http.GetStringAsync(url);
+        if (string.IsNullOrWhiteSpace(body)) return null;
+
+        // 提取基金名称
+        string name = ExtractJsVar(body, "fS_name") ?? $"基金{code}";
+
+        // 提取净值走势 Data_netWorthTrend = [{x:ms,y:nav},...]
+        var navList = ExtractNetWorthTrend(body);
+        if (navList.Count == 0) return null;
+
+        // 最近交易日净值
+        var last = navList[^1];
+        decimal netValue = last.nav;
+        string netValueDate = last.date.ToString("MM-dd");
+
+        // 涨跌幅：最近两日净值变化
+        decimal growthRate = 0m;
+        if (navList.Count >= 2)
+        {
+            var prev = navList[^2];
+            if (prev.nav > 0)
+                growthRate = Math.Round((netValue - prev.nav) / prev.nav * 100m, 2);
+        }
+
+        // 近30日走势序列（百分比）
+        var trend = BuildTrendFromNav(navList);
+
+        return new Fund
+        {
+            Code = code,
+            Name = name,
+            GrowthRate = growthRate,
+            NetValue = netValue,
+            NetValueDate = netValueDate,
+            EstimateValue = netValue,
+            EstimateTime = netValueDate,
+            Trend = trend,
+            NetValueUpdated = false,
+        };
+    }
+
+    /// <summary>回退：仅用 lsjz 获取净值（无名称）。</summary>
+    private async Task<Fund?> FetchFromLsjzFallbackAsync(string code)
+    {
+        var list = await GetLsjzHistoryAsync(code, 30);
+        if (list.Count == 0) return null;
+
+        var last = list[^1];
+        decimal growthRate = 0m;
+        if (list.Count >= 2)
+        {
+            var prev = list[^2];
+            if (prev.nav > 0) growthRate = Math.Round((last.nav - prev.nav) / prev.nav * 100m, 2);
+        }
+
+        var trend = BuildTrendFromNav(list);
+
+        return new Fund
+        {
+            Code = code,
+            Name = $"基金{code}",
+            GrowthRate = growthRate,
+            NetValue = last.nav,
+            NetValueDate = last.date.ToString("MM-dd"),
+            EstimateValue = last.nav,
+            EstimateTime = last.date.ToString("MM-dd"),
+            Trend = trend,
+            NetValueUpdated = false,
+        };
+    }
+
     // ── 历史净值 ──
 
-    /// <summary>取最近 n 条历史净值（日期升序）。优先用 pingzhongdata（稳定、无防盗链），失败回退 lsjz。</summary>
+    /// <summary>取最近 n 条历史净值（日期升序）。优先 pingzhongdata，失败回退 lsjz。</summary>
     public async Task<List<(DateTime date, decimal nav)>> GetHistoryAsync(string code, int pageSize = 120)
     {
-        // 方式一：pingzhongdata 静态文件，含 Data_netWorthTrend = [{x:ms,y:nav},...]
-        var fromPzd = await GetHistoryFromPingzhongAsync(code, pageSize);
-        if (fromPzd.Count >= 2) return fromPzd;
+        // 方式一：pingzhongdata（更稳定，一次请求拿到全部历史）
+        var list = await GetHistoryFromPingzhongAsync(code, pageSize);
+        if (list.Count >= 2) return list;
 
-        // 方式二：lsjz 接口（带 Referer）
+        // 方式二：lsjz 接口
+        return await GetLsjzHistoryAsync(code, pageSize);
+    }
+
+    private async Task<List<(DateTime date, decimal nav)>> GetHistoryFromPingzhongAsync(string code, int take)
+    {
+        var list = new List<(DateTime, decimal)>();
+        try
+        {
+            var url = $"https://fund.eastmoney.com/pingzhongdata/{code}.js?v={DateTime.Now:yyyyMMddHHmmss}";
+            var body = await _http.GetStringAsync(url);
+            var raw = ExtractNetWorthTrend(body);
+            list = raw;
+            if (list.Count > take) list = list.Skip(list.Count - take).ToList();
+        }
+        catch { }
+        return list;
+    }
+
+    private async Task<List<(DateTime date, decimal nav)>> GetLsjzHistoryAsync(string code, int pageSize = 120)
+    {
         var list = new List<(DateTime, decimal)>();
         try
         {
@@ -116,86 +193,6 @@ public class TiantianFundDataService : IFundDataService
         return list;
     }
 
-    /// <summary>从 pingzhongdata 静态文件解析历史净值（取末尾 take 条）。</summary>
-    private async Task<List<(DateTime date, decimal nav)>> GetHistoryFromPingzhongAsync(string code, int take)
-    {
-        var list = new List<(DateTime, decimal)>();
-        try
-        {
-            var url = $"https://fund.eastmoney.com/pingzhongdata/{code}.js?v={DateTime.Now:yyyyMMddHHmmss}";
-            var body = await _http.GetStringAsync(url);
-
-            // 提取 var Data_netWorthTrend = [ ... ];
-            const string key = "Data_netWorthTrend";
-            int ki = body.IndexOf(key);
-            if (ki < 0) return list;
-            int lb = body.IndexOf('[', ki);
-            int rb = body.IndexOf(']', lb);
-            if (lb < 0 || rb < 0) return list;
-            var arrJson = body.Substring(lb, rb - lb + 1);
-
-            using var doc = JsonDocument.Parse(arrJson);
-            foreach (var item in doc.RootElement.EnumerateArray())
-            {
-                // {"x":1700000000000,"y":1.2345,"equityReturn":..,"unitMoney":""}
-                if (item.TryGetProperty("x", out var xEl) && item.TryGetProperty("y", out var yEl))
-                {
-                    long ms = xEl.GetInt64();
-                    var date = DateTimeOffset.FromUnixTimeMilliseconds(ms).LocalDateTime.Date;
-                    decimal nav = yEl.TryGetDecimal(out var dv) ? dv : 0m;
-                    if (nav > 0) list.Add((date, nav));
-                }
-            }
-            list.Sort((a, b) => a.Item1.CompareTo(b.Item1));
-            if (list.Count > take) list = list.Skip(list.Count - take).ToList();
-        }
-        catch { }
-        return list;
-    }
-
-    // ── 当日分时采样 ──
-    // 估值接口每次只返回"当前"一个点；把一天内多次刷新的估值涨跌幅按时间累积成曲线，
-    // 表现为从当日首次采样画到当前，跨天自动重置。
-    private readonly Dictionary<string, (DateTime day, List<decimal> points)> _intraday = new();
-
-    private List<decimal> AppendIntradaySample(string code, decimal growth)
-    {
-        var today = DateTime.Today;
-        lock (_intraday)
-        {
-            if (!_intraday.TryGetValue(code, out var entry) || entry.day != today)
-            {
-                entry = (today, new List<decimal>());
-                _intraday[code] = entry;
-            }
-            if (entry.points.Count < 300)
-                entry.points.Add(growth);
-            if (entry.points.Count == 1)
-                return new List<decimal> { 0m, growth };
-            return new List<decimal>(entry.points);
-        }
-    }
-
-    private async Task<List<decimal>> TryBuildTrendAsync(string code, decimal fallbackGrowth)
-    {
-        try
-        {
-            var hist = await GetHistoryAsync(code, 30);
-            if (hist.Count >= 2)
-            {
-                // 用最近 30 日净值相对首日的累计涨跌%作为曲线
-                var baseNav = hist[0].nav;
-                if (baseNav > 0)
-                    return hist.Select(h => Math.Round((h.nav - baseNav) / baseNav * 100m, 2)).ToList();
-            }
-        }
-        catch { }
-        // 回退：一条平滑到 fallbackGrowth 的占位线
-        var line = new List<decimal>();
-        for (int i = 0; i < 20; i++) line.Add(Math.Round(fallbackGrowth * i / 19m, 2));
-        return line;
-    }
-
     // ── 搜索 ──
 
     public async Task<List<(string code, string name)>> SearchAsync(string keyword)
@@ -211,10 +208,10 @@ public class TiantianFundDataService : IFundDataService
             {
                 foreach (var item in datas.EnumerateArray())
                 {
-                    var code = item.GetProperty("CODE").GetString();
-                    var name = item.GetProperty("NAME").GetString();
-                    if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(name))
-                        list.Add((code!, name!));
+                    var c = item.GetProperty("CODE").GetString();
+                    var n = item.GetProperty("NAME").GetString();
+                    if (!string.IsNullOrEmpty(c) && !string.IsNullOrEmpty(n))
+                        list.Add((c!, n!));
                     if (list.Count >= 30) break;
                 }
             }
@@ -225,19 +222,16 @@ public class TiantianFundDataService : IFundDataService
 
     // ── 榜单/排行 ──
 
-    /// <summary>取开放式基金日涨幅排行的前若干只（代码+名称）。ft：all/gp/hh/zq/zs/qdii/etf。失败返回空。</summary>
     public async Task<List<(string code, string name)>> GetRankingAsync(int top = 30, string ft = "all")
     {
         var list = new List<(string, string)>();
         try
         {
-            // ft 类型；sc=rzdf 按日增长率；st=desc 降序
             var url = $"https://fund.eastmoney.com/data/rankhandler.aspx?op=ph&dt=kf&ft={ft}&rs=&gs=0&sc=rzdf&st=desc&pi=1&pn={top}";
             using var req = new HttpRequestMessage(HttpMethod.Get, url);
             req.Headers.Referrer = new Uri("https://fund.eastmoney.com/data/fundranking.html");
             var resp = await _http.SendAsync(req);
             var body = await resp.Content.ReadAsStringAsync();
-            // 返回形如 var rankData = {datas:["code,name,...","..."],...};
             int s = body.IndexOf('[');
             int e = body.IndexOf(']');
             if (s >= 0 && e > s)
@@ -256,9 +250,69 @@ public class TiantianFundDataService : IFundDataService
         return list;
     }
 
-    // ── 辅助 ──
+    // ── 辅助：pingzhongdata 解析 ──
 
-    private Fund BuildFallback(string code) => new()
+    /// <summary>从 JS 文本中提取 Data_netWorthTrend 数组。</summary>
+    private static List<(DateTime date, decimal nav)> ExtractNetWorthTrend(string body)
+    {
+        var list = new List<(DateTime, decimal)>();
+        const string key = "Data_netWorthTrend";
+        int ki = body.IndexOf(key, StringComparison.Ordinal);
+        if (ki < 0) return list;
+        int lb = body.IndexOf('[', ki);
+        int rb = body.IndexOf(']', lb);
+        if (lb < 0 || rb < 0) return list;
+        var arrJson = body.Substring(lb, rb - lb + 1);
+
+        try
+        {
+            using var doc = JsonDocument.Parse(arrJson);
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                if (item.TryGetProperty("x", out var xEl) && item.TryGetProperty("y", out var yEl))
+                {
+                    long ms = xEl.GetInt64();
+                    var date = DateTimeOffset.FromUnixTimeMilliseconds(ms).LocalDateTime.Date;
+                    decimal nav = yEl.TryGetDecimal(out var dv) ? dv : 0m;
+                    if (nav > 0) list.Add((date, nav));
+                }
+            }
+            list.Sort((a, b) => a.date.CompareTo(b.date));
+        }
+        catch { }
+        return list;
+    }
+
+    /// <summary>从 JS 文本中提取 varName = "value" 这样的字符串变量。</summary>
+    private static string? ExtractJsVar(string body, string varName)
+    {
+        var pat = $"var {varName}";
+        int ki = body.IndexOf(pat, StringComparison.Ordinal);
+        if (ki < 0) return null;
+        int eq = body.IndexOf('=', ki + pat.Length);
+        if (eq < 0) return null;
+        int q1 = body.IndexOf('"', eq);
+        if (q1 < 0) return null;
+        int q2 = body.IndexOf('"', q1 + 1);
+        if (q2 < 0) return null;
+        return body.Substring(q1 + 1, q2 - q1 - 1);
+    }
+
+    /// <summary>从净值序列生成百分比走势（最近 30 个点）。</summary>
+    private static List<decimal> BuildTrendFromNav(List<(DateTime date, decimal nav)> navList)
+    {
+        if (navList.Count < 2) return new List<decimal>();
+
+        var recent = navList.Skip(navList.Count - 30).ToList();
+        var baseNav = recent[0].nav;
+        if (baseNav <= 0) return new List<decimal>();
+
+        return recent.Select(h => Math.Round((h.nav - baseNav) / baseNav * 100m, 2)).ToList();
+    }
+
+    // ── 兜底 ──
+
+    private static Fund BuildFallback(string code) => new()
     {
         Code = code,
         Name = $"基金{code}",
@@ -269,32 +323,4 @@ public class TiantianFundDataService : IFundDataService
         EstimateTime = "--",
         Trend = new List<decimal>(),
     };
-
-    private static string? ExtractJsonp(string raw)
-    {
-        int s = raw.IndexOf('{');
-        int e = raw.LastIndexOf('}');
-        if (s < 0 || e < 0 || e <= s) return null;
-        return raw.Substring(s, e - s + 1);
-    }
-
-    private static string? GetStr(JsonElement r, string name)
-        => r.TryGetProperty(name, out var v) ? v.GetString() : null;
-
-    private static decimal ParseDec(string? s)
-        => decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : 0m;
-
-    private static string FormatDate(string jzrq)
-    {
-        // jzrq 形如 2026-06-05 → 06-05
-        if (DateTime.TryParse(jzrq, out var d)) return d.ToString("MM-dd");
-        return jzrq;
-    }
-
-    private static string FormatTime(string gztime)
-    {
-        // gztime 形如 2026-06-05 15:00 → 06-05 15:00
-        if (DateTime.TryParse(gztime, out var d)) return d.ToString("MM-dd HH:mm");
-        return gztime;
-    }
 }

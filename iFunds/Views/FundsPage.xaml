@@ -53,7 +53,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="名称" FontSize="12" Opacity="0.6" />
                 <TextBlock Grid.Column="1" Text="净值" FontSize="12" Opacity="0.6" TextAlignment="Right" />
-                <TextBlock Grid.Column="2" Text="估算涨跌幅" FontSize="12" Opacity="0.6" TextAlignment="Right" />
+                <TextBlock Grid.Column="2" Text="日涨跌幅" FontSize="12" Opacity="0.6" TextAlignment="Right" />
                 <TextBlock Grid.Column="3" Text="操作" FontSize="12" Opacity="0.6" TextAlignment="Right" />
             </Grid>
         </Border>

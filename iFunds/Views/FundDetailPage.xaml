@@ -37,7 +37,7 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                            <TextBlock Text="今日估算" FontSize="12" Opacity="0.55" />
+                            <TextBlock Text="日涨跌幅" FontSize="12" Opacity="0.55" />
                             <TextBlock x:Name="GrowthText" FontSize="30" FontWeight="Bold" Margin="0,2" />
                             <TextBlock x:Name="EstTimeText" FontSize="11" Opacity="0.5" />
                         </StackPanel>
@@ -108,11 +108,11 @@
                             <TextBlock x:Name="HoldingAmountText" FontSize="14" FontWeight="SemiBold" />
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="1" Spacing="3">
-                            <TextBlock Text="估算收益" FontSize="11" Opacity="0.55" />
+                            <TextBlock Text="当日收益" FontSize="11" Opacity="0.55" />
                             <TextBlock x:Name="EstProfitText" FontSize="14" FontWeight="SemiBold" />
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="2" Spacing="3">
-                            <TextBlock Text="估算总值" FontSize="11" Opacity="0.55" />
+                            <TextBlock Text="当日总值" FontSize="11" Opacity="0.55" />
                             <TextBlock x:Name="EstTotalText" FontSize="14" FontWeight="SemiBold" />
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="3" Spacing="3">

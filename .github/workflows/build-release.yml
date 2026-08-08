@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -21,7 +24,7 @@ jobs:
       - name: 还原依赖
         run: dotnet restore iFunds/iFunds.csproj
 
-      # ── 免安装版（自包含 .exe，解压即用，无需证书） ──
+      # ── Step 1: 自包含免安装包 ──
       - name: 构建自包含包
         run: >
           dotnet publish iFunds/iFunds.csproj
@@ -38,7 +41,11 @@ jobs:
           Compress-Archive -Path iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/* `
                            -DestinationPath iFunds_portable_x64.zip
 
-      # ── MSIX 安装版（可选，需要安装证书） ──
+      # 清理后构建 MSIX，避免两次 publish 相互干扰
+      - name: 清理
+        run: dotnet clean iFunds/iFunds.csproj -c Release
+
+      # ── Step 2: MSIX 安装包 ──
       - name: 构建 MSIX
         run: >
           dotnet publish iFunds/iFunds.csproj
@@ -46,18 +53,23 @@ jobs:
           -r win-x64
           -p:Platform=x64
           -p:AppxPackageSigningEnabled=true
+          -p:SelfContained=false
           --no-restore
 
       - name: 查找 MSIX
         id: msix
         shell: pwsh
         run: |
-          $pkg = Get-ChildItem -Recurse -Path iFunds/bin -Filter "*.msix" |
-                 Where-Object { $_.Name -notlike "*CodeSign*" } |
-                 Select-Object -First 1
-          if ($pkg) {
-            Write-Output "path=$($pkg.FullName)" >> $env:GITHUB_OUTPUT
-            Write-Output "name=$($pkg.Name)" >> $env:GITHUB_OUTPUT
+          $pkgs = Get-ChildItem -Recurse -Path iFunds/bin -Filter "*.msix" |
+                  Where-Object { $_.Name -notlike "*CodeSign*" } |
+                  Sort-Object LastWriteTime -Descending
+          foreach ($p in $pkgs) { Write-Host "Found: $($p.FullName)" }
+          $best = $pkgs | Select-Object -First 1
+          if ($best) {
+            Write-Output "path=$($best.FullName)" >> $env:GITHUB_OUTPUT
+            Write-Output "name=$($best.Name)" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "No MSIX found!"
           }
 
       - name: 发布到 GitHub Release
