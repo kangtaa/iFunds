@@ -54,6 +54,8 @@ jobs:
           -p:Platform=x64
           -p:AppxPackageSigningEnabled=true
           -p:AppxPackage=true
+          -p:SelfContained=true
+          -p:WindowsAppSDKSelfContained=true
           --no-restore
 
       - name: 查找 MSIX
