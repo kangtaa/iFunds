@@ -77,21 +77,21 @@
                         <TextBlock Grid.Column="1" Text="持仓" VerticalAlignment="Center" />
                     </Grid>
                 </RadioButton>
-            </StackPanel>
-
-            <StackPanel Grid.Row="2" Padding="12,4,12,18" Spacing="2">
-                <Border Height="1" Background="{StaticResource LinearBorder}" Margin="6,0,6,8" />
                 <RadioButton Style="{StaticResource NavItemStyle}" GroupName="nav" Tag="analysis" Checked="OnNavChecked">
                     <Grid ColumnSpacing="10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="18" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <FontIcon Grid.Column="0" Glyph="&#xE9D2;" FontSize="16" Foreground="#6E7178"
+                        <FontIcon Grid.Column="0" Glyph="&#xE9D2;" FontSize="16" Foreground="#5E6AD2"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="分析" VerticalAlignment="Center" />
                     </Grid>
                 </RadioButton>
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Padding="12,4,12,18" Spacing="2">
+                <Border Height="1" Background="{StaticResource LinearBorder}" Margin="6,0,6,8" />
                 <RadioButton Style="{StaticResource NavItemStyle}" GroupName="nav" Tag="account" Checked="OnNavChecked">
                     <Grid ColumnSpacing="10">
                         <Grid.ColumnDefinitions>

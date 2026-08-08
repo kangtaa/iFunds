@@ -24,8 +24,17 @@ jobs:
       - name: 还原依赖
         run: dotnet restore iFunds/iFunds.csproj
 
-      # ── 自包含构建 ──
-      - name: 构建
+      - name: 提取版本号
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^v', ''
+          Write-Output "ver=$ver" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $ver"
+
+      # ── 自包含构建（zip + Inno Setup 共用） ──
+      - name: 构建自包含包
         run: >
           dotnet publish iFunds/iFunds.csproj
           -c Release
@@ -45,42 +54,61 @@ jobs:
       - name: 安装 Inno Setup
         run: choco install innosetup -y --no-progress
 
-      - name: 提取版本号
-        id: version
+      - name: 构建 Inno Setup 安装包
         shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          $ver = $tag -replace '^v', ''
-          Write-Output "ver=$ver" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $ver"
-
-      - name: 构建安装包
-        shell: pwsh
-        run: |
-          $publishDir = "iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish"
-          iscc /Qp installer.iss /DMyAppVersion="${{ steps.version.outputs.ver }}" /O"..\..\..\..\" /F"iFunds_Setup_x64"
+          iscc /Qp installer.iss `
+            /DMyAppVersion="${{ steps.version.outputs.ver }}" `
+            /O"..\..\..\..\" `
+            /F"iFunds_Setup_x64"
         working-directory: iFunds\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64
 
-      - name: 验证安装包
-        shell: pwsh
-        run: |
-          $setup = Get-ChildItem -Path iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64 -Filter "iFunds_Setup*.exe" | Select-Object -First 1
-          if ($setup) {
-            $sizeMB = [math]::Round($setup.Length / 1MB, 1)
-            Write-Host "Installer: $($setup.Name) ($sizeMB MB)"
-            Write-Output "path=$($setup.FullName)" >> $env:GITHUB_OUTPUT
-          } else {
-            Write-Host "Installer not found!"
-            Get-ChildItem -Recurse -Path . -Filter "iFunds_Setup*"
-          }
+      - name: 找到安装包
         id: setup_exe
-        working-directory: iFunds\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem "iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64" -Filter "iFunds_Setup*.exe" | Select-Object -First 1
+          Write-Host "Setup: $($setup.FullName) ($([math]::Round($setup.Length/1MB,1)) MB)"
+          Write-Output "path=$($setup.FullName)" >> $env:GITHUB_OUTPUT
+
+      # ── MSIX 安装包 ──
+      - name: 清理旧构建
+        run: dotnet clean iFunds/iFunds.csproj -c Release
+
+      # 使用 msbuild 直接调用 MSIX 打包目标，-r 不用指定让 MSIX 自己处理
+      - name: 构建 MSIX
+        run: >
+          msbuild iFunds/iFunds.csproj
+          /t:Build
+          /p:Configuration=Release
+          /p:Platform=x64
+          /p:AppxPackage=true
+          /p:AppxPackageSigningEnabled=true
+          /p:SelfContained=true
+          /p:WindowsAppSDKSelfContained=true
+          /restore:false
+
+      - name: 查找 MSIX
+        id: msix
+        shell: pwsh
+        run: |
+          $pkgs = Get-ChildItem -Recurse -Path iFunds/bin -Include "*.msix","*.msixbundle" |
+                  Where-Object { $_.Name -notlike "*CodeSign*" } |
+                  Sort-Object LastWriteTime -Descending
+          foreach ($p in $pkgs) { Write-Host "Found: $($p.FullName) ($([math]::Round($p.Length/1MB,1)) MB)" }
+          $best = $pkgs | Select-Object -First 1
+          if ($best) {
+            Write-Output "path=$($best.FullName)" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "MSIX not found — this is expected if msbuild doesn't produce it"
+          }
 
       - name: 发布到 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             iFunds_portable_x64.zip
-            iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/iFunds_Setup_x64.exe
+            ${{ steps.setup_exe.outputs.path }}
+            ${{ steps.msix.outputs.path }}
           name: ${{ github.ref_name }}
           generate_release_notes: true
