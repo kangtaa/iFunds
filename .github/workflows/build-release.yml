@@ -59,48 +59,72 @@ jobs:
         run: |
           iscc /Qp installer.iss `
             /DMyAppVersion="${{ steps.version.outputs.ver }}" `
-            /O"..\..\..\..\" `
             /F"iFunds_Setup_x64"
-        working-directory: iFunds\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64
 
       - name: 找到安装包
         id: setup_exe
         shell: pwsh
         run: |
-          $setup = Get-ChildItem "iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64" -Filter "iFunds_Setup*.exe" | Select-Object -First 1
+          $setup = Get-ChildItem -Path . -Filter "iFunds_Setup*.exe" | Select-Object -First 1
           Write-Host "Setup: $($setup.FullName) ($([math]::Round($setup.Length/1MB,1)) MB)"
           Write-Output "path=$($setup.FullName)" >> $env:GITHUB_OUTPUT
 
+      # ── WiX MSI 安装包 ──
+      - name: 安装 WiX Toolset
+        run: choco install wixtoolset -y --no-progress
+
+      - name: 构建 MSI
+        shell: pwsh
+        run: |
+          wix build -arch x64 `
+            -dVersion="${{ steps.version.outputs.ver }}" `
+            -o iFunds_Setup_x64.msi `
+            installer.wxs
+
+      - name: 找到 MSI
+        id: msi
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem -Path . -Filter "iFunds_Setup*.msi" | Select-Object -First 1
+          Write-Host "MSI: $($msi.FullName) ($([math]::Round($msi.Length/1MB,1)) MB)"
+          Write-Output "path=$($msi.FullName)" >> $env:GITHUB_OUTPUT
+
       # ── MSIX 安装包 ──
-      - name: 清理旧构建
+      - name: 清理
         run: dotnet clean iFunds/iFunds.csproj -c Release
 
-      # 使用 msbuild 直接调用 MSIX 打包目标，-r 不用指定让 MSIX 自己处理
       - name: 构建 MSIX
         run: >
-          msbuild iFunds/iFunds.csproj
-          /t:Build
-          /p:Configuration=Release
-          /p:Platform=x64
-          /p:AppxPackage=true
-          /p:AppxPackageSigningEnabled=true
-          /p:SelfContained=true
-          /p:WindowsAppSDKSelfContained=true
-          /restore:false
+          dotnet publish iFunds/iFunds.csproj
+          -c Release
+          -r win-x64
+          -p:Platform=x64
+          -p:AppxPackageSigningEnabled=true
+          -p:SelfContained=true
+          -p:WindowsAppSDKSelfContained=true
+          --no-restore
 
       - name: 查找 MSIX
         id: msix
         shell: pwsh
         run: |
-          $pkgs = Get-ChildItem -Recurse -Path iFunds/bin -Include "*.msix","*.msixbundle" |
-                  Where-Object { $_.Name -notlike "*CodeSign*" } |
-                  Sort-Object LastWriteTime -Descending
-          foreach ($p in $pkgs) { Write-Host "Found: $($p.FullName) ($([math]::Round($p.Length/1MB,1)) MB)" }
-          $best = $pkgs | Select-Object -First 1
+          $pkgs = @(Get-ChildItem -Recurse -Path iFunds/bin -Include "*.msix","*.msixbundle" |
+                    Where-Object { $_.Name -notlike "*CodeSign*" })
+          if ($pkgs.Count -eq 0) {
+            $pkgs = @(Get-ChildItem -Recurse -Path . -Filter "*.msix" |
+                      Where-Object { $_.FullName -notlike "*\obj\*" })
+          }
+          foreach ($p in $pkgs) {
+            Write-Host "Found: $($p.FullName) ($([math]::Round($p.Length/1MB,1)) MB)"
+          }
+          $best = $pkgs | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if ($best) {
             Write-Output "path=$($best.FullName)" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "MSIX not found — this is expected if msbuild doesn't produce it"
+            Write-Host "MSIX not found, listing AppPackages dirs:"
+            Get-ChildItem -Recurse -Path iFunds -Directory -Filter "AppPackages" | ForEach-Object {
+              Get-ChildItem -Recurse $_.FullName | Select-Object -First 20
+            }
           }
 
       - name: 发布到 GitHub Release
@@ -109,6 +133,7 @@ jobs:
           files: |
             iFunds_portable_x64.zip
             ${{ steps.setup_exe.outputs.path }}
+            ${{ steps.msi.outputs.path }}
             ${{ steps.msix.outputs.path }}
           name: ${{ github.ref_name }}
           generate_release_notes: true
