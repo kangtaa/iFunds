@@ -91,7 +91,8 @@ jobs:
       - name: ③ MSI 安装包
         shell: pwsh
         run: |
-          wix build -arch x64 -dVersion="${{ steps.ver.outputs.v }}" -o "iFunds_Setup_x64.msi" installer.wxs
+          (Get-Content installer.wxs) -replace '__VERSION__', '${{ steps.ver.outputs.v }}' | Set-Content installer_release.wxs
+          wix build -arch x64 -o "iFunds_Setup_x64.msi" installer_release.wxs
           $msi = Get-Item "iFunds_Setup_x64.msi"
           Write-Host "MSI done: $([math]::Round($msi.Length/1MB,1)) MB"
           Write-Output "msi=$($msi.FullName)" >> $env:GITHUB_OUTPUT
