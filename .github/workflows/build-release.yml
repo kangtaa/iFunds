@@ -46,21 +46,41 @@ jobs:
                            -DestinationPath iFunds_portable_x64.zip
 
       # ── ② EXE (Inno Setup) ──
-      - name: Inno Setup
-        run: choco install innosetup -y --no-progress
+      - name: Inno Setup + WiX
+        run: |
+          choco install innosetup wixtoolset -y --no-progress
+          echo "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: ② EXE 安装包
         shell: pwsh
         run: |
-          $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
           iscc /Qp installer.iss /DMyAppVersion="${{ steps.ver.outputs.v }}" /F"iFunds_Setup_x64" 2>&1
           $e = Get-Item "iFunds_Setup_x64.exe"
           Write-Host "EXE: $([math]::Round($e.Length/1MB,1)) MB"
           Write-Output "exe=$($e.FullName)" >> $env:GITHUB_OUTPUT
         id: exe
 
-      # ── ③ MSIX ──
-      - name: ③ MSIX 安装包
+      # ── ③ MSI (WiX v3) ──
+      - name: ③ MSI 安装包
+        shell: pwsh
+        run: |
+          $pub = "iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish"
+          $ver = "${{ steps.ver.outputs.v }}"
+          # 替换版本号
+          (Get-Content installer.wxs) -replace '__VERSION__', $ver | Set-Content installer_v.wxs
+          # 用 heat 采集所有文件
+          heat dir $pub -dr INSTALLFOLDER -cg AppFiles -gg -g1 -sfrag -srd -var var.PublishDir -out AppFiles.wxs
+          # 编译
+          candle -arch x64 "-dPublishDir=$pub" installer_v.wxs AppFiles.wxs
+          # 链接
+          light -ext WixUIExtension -o iFunds_Setup_x64.msi installer_v.wixobj AppFiles.wixobj
+          $m = Get-Item "iFunds_Setup_x64.msi"
+          Write-Host "MSI: $([math]::Round($m.Length/1MB,1)) MB"
+          Write-Output "msi=$($m.FullName)" >> $env:GITHUB_OUTPUT
+        id: msi
+
+      # ── ④ MSIX ──
+      - name: ④ MSIX 安装包
         run: >
           dotnet publish iFunds/iFunds.csproj
           -c Release -p:Platform=x64
@@ -89,6 +109,7 @@ jobs:
           files: |
             iFunds_portable_x64.zip
             ${{ steps.exe.outputs.exe }}
+            ${{ steps.msi.outputs.msi }}
             ${{ steps.msix.outputs.msix }}
           name: ${{ github.ref_name }}
           generate_release_notes: true

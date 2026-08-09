@@ -1,36 +1,31 @@
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="iFunds"
-           Manufacturer="iFunds"
-           Version="__VERSION__"
-           UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567891"
-           Scope="perUser"
-           Compressed="yes">
-    <MajorUpgrade DowngradeErrorMessage="已安装更高版本，请先卸载旧版本后再安装。" />
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="iFunds" Language="1033" Version="__VERSION__"
+           Manufacturer="iFunds" UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567891">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
-    <StandardDirectory Id="ProgramFiles6432Folder">
-      <Directory Id="INSTALLFOLDER" Name="iFunds" />
-    </StandardDirectory>
-
-    <StandardDirectory Id="ProgramMenuFolder">
-      <Directory Id="StartMenuFolder" Name="iFunds" />
-    </StandardDirectory>
-
-    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
-      <Files Include="iFunds\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\**">
-        <Exclude Files="iFunds\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish\*.pdb" />
-      </Files>
-    </ComponentGroup>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="iFunds" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="StartMenuFolder" Name="iFunds" />
+      </Directory>
+    </Directory>
 
     <Component Id="AppShortcut" Directory="StartMenuFolder" Guid="*">
-      <Shortcut Id="StartMenuShortcut" Name="iFunds" Target="[INSTALLFOLDER]iFunds.exe" />
+      <Shortcut Id="StartMenuShortcut" Name="iFunds"
+                Target="[INSTALLFOLDER]iFunds.exe" WorkingDirectory="INSTALLFOLDER" />
       <RemoveFolder Id="RemoveStartMenu" On="uninstall" />
-      <RegistryValue Root="HKCU" Key="Software\iFunds" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      <RegistryValue Root="HKCU" Key="Software\iFunds" Name="installed"
+                     Type="integer" Value="1" KeyPath="yes" />
     </Component>
 
     <Feature Id="Main" Title="iFunds" Level="1">
-      <ComponentGroupRef Id="AppFiles" />
       <ComponentRef Id="AppShortcut" />
+      <ComponentGroupRef Id="AppFiles" />
     </Feature>
-  </Package>
+  </Product>
 </Wix>
