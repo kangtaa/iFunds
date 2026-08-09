@@ -13,135 +13,82 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 检出代码
+      - name: 检出
         uses: actions/checkout@v4
 
-      - name: 安装 .NET 8
+      - name: .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: 提取版本号
+      - name: 版本号
         id: ver
         shell: pwsh
         run: |
           $v = "${{ github.ref_name }}" -replace '^v', ''
           Write-Output "v=$v" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $v"
 
-      - name: 还原依赖
+      - name: 还原
         run: dotnet restore iFunds/iFunds.csproj
 
-      # ============================================================
-      # 自包含发布（所有安装包都从这里取文件）
-      # ============================================================
       - name: 构建
         run: >
           dotnet publish iFunds/iFunds.csproj
-          -c Release
-          -r win-x64
-          -p:Platform=x64
-          -p:SelfContained=true
-          -p:WindowsAppSDKSelfContained=true
+          -c Release -r win-x64 -p:Platform=x64
+          -p:SelfContained=true -p:WindowsAppSDKSelfContained=true
           --no-restore
 
-      - name: 设置发布路径变量
-        id: paths
-        shell: pwsh
-        run: |
-          $pub = "iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish"
-          Write-Output "publish=$pub" >> $env:GITHUB_OUTPUT
-          Write-Host "Publish: $pub"
-
-      # ============================================================
-      # ① 便携版 zip
-      # ============================================================
+      # ── ① zip ──
       - name: ① 便携版 zip
         shell: pwsh
         run: |
-          Compress-Archive -Path "${{ steps.paths.outputs.publish }}/*" -DestinationPath iFunds_portable_x64.zip
-          Write-Host "zip done: $((Get-Item iFunds_portable_x64.zip).Length / 1MB) MB"
+          Compress-Archive -Path iFunds/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/* `
+                           -DestinationPath iFunds_portable_x64.zip
 
-      # ============================================================
-      # ② Inno Setup EXE 安装包
-      # ============================================================
-      - name: 安装 Inno Setup
+      # ── ② EXE (Inno Setup) ──
+      - name: Inno Setup
         run: choco install innosetup -y --no-progress
-
-      - name: 刷新环境变量
-        shell: pwsh
-        run: |
-          $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
 
       - name: ② EXE 安装包
         shell: pwsh
         run: |
-          iscc /Qp installer.iss /DMyAppVersion="${{ steps.ver.outputs.v }}" /F"iFunds_Setup_x64"
-          $exe = Get-Item "iFunds_Setup_x64.exe"
-          Write-Host "EXE done: $([math]::Round($exe.Length/1MB,1)) MB"
-          Write-Output "exe=$($exe.FullName)" >> $env:GITHUB_OUTPUT
-        id: exe_path
+          $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
+          iscc /Qp installer.iss /DMyAppVersion="${{ steps.ver.outputs.v }}" /F"iFunds_Setup_x64" 2>&1
+          $e = Get-Item "iFunds_Setup_x64.exe"
+          Write-Host "EXE: $([math]::Round($e.Length/1MB,1)) MB"
+          Write-Output "exe=$($e.FullName)" >> $env:GITHUB_OUTPUT
+        id: exe
 
-      # ============================================================
-      # ③ WiX MSI 安装包
-      # ============================================================
-      - name: 安装 WiX v4（v5+ 需要额外 EULA）
-        run: dotnet tool install --global wix --version 4.0.5
-
-      - name: ③ MSI 安装包
-        shell: pwsh
-        run: |
-          (Get-Content installer.wxs) -replace '__VERSION__', '${{ steps.ver.outputs.v }}' | Set-Content installer_release.wxs
-          wix build -arch x64 -o "iFunds_Setup_x64.msi" installer_release.wxs
-          $msi = Get-Item "iFunds_Setup_x64.msi"
-          Write-Host "MSI done: $([math]::Round($msi.Length/1MB,1)) MB"
-          Write-Output "msi=$($msi.FullName)" >> $env:GITHUB_OUTPUT
-        id: msi_path
-
-      # ============================================================
-      # ④ MSIX 安装包
-      # ============================================================
-      - name: 清理
-        run: dotnet clean iFunds/iFunds.csproj -c Release
-
-      - name: ④ MSIX 安装包
+      # ── ③ MSIX ──
+      - name: ③ MSIX 安装包
         run: >
           dotnet publish iFunds/iFunds.csproj
-          -c Release
-          -p:Platform=x64
+          -c Release -p:Platform=x64
           -p:AppxPackageSigningEnabled=true
-          -p:SelfContained=true
-          -p:WindowsAppSDKSelfContained=true
+          -p:SelfContained=true -p:WindowsAppSDKSelfContained=true
           --no-restore
 
       - name: 查找 MSIX
-        id: msix_path
+        id: msix
         shell: pwsh
         run: |
-          $pkg = Get-ChildItem -Recurse -Path iFunds -Filter "*.msix" |
-                 Where-Object { $_.FullName -notlike "*\obj\*" -and $_.Name -notlike "*CodeSign*" } |
-                 Sort-Object LastWriteTime -Descending |
-                 Select-Object -First 1
-          if ($pkg) {
-            Write-Host "MSIX: $($pkg.FullName) $([math]::Round($pkg.Length/1MB,1)) MB"
-            Write-Output "msix=$($pkg.FullName)" >> $env:GITHUB_OUTPUT
-            Write-Output "has_msix=true" >> $env:GITHUB_OUTPUT
+          $p = Get-ChildItem -Recurse -Path iFunds -Filter "*.msix" |
+               Where-Object { $_.FullName -notlike "*\obj\*" -and $_.Name -notlike "*CodeSign*" } |
+               Sort-Object Length -Descending | Select-Object -First 1
+          if ($p) {
+            Write-Host "MSIX: $([math]::Round($p.Length/1MB,1)) MB"
+            Write-Output "msix=$($p.FullName)" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "MSIX not produced (non-critical)"
-            Write-Output "has_msix=false" >> $env:GITHUB_OUTPUT
+            Write-Host "MSIX not found (skipped)"
           }
 
-      # ============================================================
-      # 发布
-      # ============================================================
+      # ── 发布 ──
       - name: 发布到 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             iFunds_portable_x64.zip
-            ${{ steps.exe_path.outputs.exe }}
-            ${{ steps.msi_path.outputs.msi }}
-            ${{ steps.msix_path.outputs.msix }}
+            ${{ steps.exe.outputs.exe }}
+            ${{ steps.msix.outputs.msix }}
           name: ${{ github.ref_name }}
           generate_release_notes: true
-        continue-on-error: true
