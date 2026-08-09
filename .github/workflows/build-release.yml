@@ -85,8 +85,8 @@ jobs:
       # ============================================================
       # ③ WiX MSI 安装包
       # ============================================================
-      - name: 安装 WiX
-        run: dotnet tool install --global wix
+      - name: 安装 WiX v4（v5+ 需要额外 EULA）
+        run: dotnet tool install --global wix --version 4.0.5
 
       - name: ③ MSI 安装包
         shell: pwsh
