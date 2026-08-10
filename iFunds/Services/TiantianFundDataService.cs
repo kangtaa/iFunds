@@ -40,16 +40,33 @@ public class TiantianFundDataService : IFundDataService
 
         try
         {
-            // 优先用 pingzhongdata（含名称、净值历史、收益率等完整信息）
-            var fromPzd = await FetchFromPingzhongAsync(code);
-            if (fromPzd is not null) return fromPzd;
-        }
-        catch { }
+            // 并行拉取双源：pingzhongdata（名称+走势）+ lsjz（最新净值，更新更快）
+            var tPzd = FetchFromPingzhongAsync(code);
+            var tLsjz = GetLsjzHistoryAsync(code, 3); // 只取最近 3 天，快
 
-        // pingzhongdata 失败则回退 lsjz（只有净值历史，没有名称）
-        try
-        {
-            return await FetchFromLsjzFallbackAsync(code);
+            await Task.WhenAll(tPzd, tLsjz);
+
+            var fund = tPzd.Result;          // pingzhongdata：名称 + 全量走势
+            var lsjzList = tLsjz.Result;     // lsjz：最新 3 天净值
+
+            // 合并：lsjz 通常更新更快，取最新净值覆盖 pingzhongdata
+            if (fund is not null && lsjzList.Count >= 2)
+            {
+                var lsjzLast = lsjzList[^1];
+                // lsjz 日期比 pzd 更新 → 覆盖净值
+                if (lsjzLast.Item1 > DateTime.Today.AddDays(-2))
+                {
+                    fund.NetValue = lsjzLast.Item2;
+                    fund.NetValueDate = lsjzLast.Item1.ToString("MM-dd");
+                    var prev = lsjzList[^2];
+                    fund.PrevNetValue = prev.Item2;
+                    if (prev.Item2 > 0)
+                        fund.GrowthRate = Math.Round((lsjzLast.Item2 - prev.Item2) / prev.Item2 * 100m, 2);
+                }
+            }
+
+            if (fund is not null) return fund;
+            if (lsjzList.Count >= 2) return await FetchFromLsjzFallbackAsync(code);
         }
         catch { }
 
