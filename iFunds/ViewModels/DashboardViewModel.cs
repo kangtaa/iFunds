@@ -18,13 +18,13 @@ public partial class DashboardViewModel : ObservableObject
 
     [ObservableProperty] private bool _isRefreshing;
     [ObservableProperty] private string _refreshTime = "--:--:--";
-    [ObservableProperty] private string _profitLabel = "今日收益";
+    [ObservableProperty] private string _profitLabel = "收益";
 
     private void UpdateProfitLabel()
     {
-        var now = DateTime.Now;
-        bool isTradingDay = now.DayOfWeek is >= DayOfWeek.Monday and <= DayOfWeek.Friday;
-        ProfitLabel = (isTradingDay && now.Hour >= 15) ? "今日收益" : "昨日收益";
+        var dateStr = Funds.FirstOrDefault(f => !string.IsNullOrEmpty(f.NetValueDate))
+                         ?.NetValueDate ?? "MM-dd";
+        ProfitLabel = $"{DateTime.Now.Year}/{dateStr} 收益";
     }
 
     [ObservableProperty]

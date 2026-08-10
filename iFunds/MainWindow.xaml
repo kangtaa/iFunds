@@ -39,7 +39,7 @@
                             <ColumnDefinition Width="18" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <FontIcon Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Foreground="#E5484D"
+                        <FontIcon Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Foreground="#6E7178"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="首页" VerticalAlignment="Center" />
                     </Grid>
@@ -50,7 +50,7 @@
                             <ColumnDefinition Width="18" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <FontIcon Grid.Column="0" Glyph="&#xE8FD;" FontSize="16" Foreground="#E5484D"
+                        <FontIcon Grid.Column="0" Glyph="&#xE8FD;" FontSize="16" Foreground="#6E7178"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="基金" VerticalAlignment="Center" />
                     </Grid>
@@ -61,7 +61,7 @@
                             <ColumnDefinition Width="18" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <FontIcon Grid.Column="0" Glyph="&#xE8D5;" FontSize="16" Foreground="#5E6AD2"
+                        <FontIcon Grid.Column="0" Glyph="&#xE8D5;" FontSize="16" Foreground="#6E7178"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="行情" VerticalAlignment="Center" />
                     </Grid>
@@ -72,7 +72,7 @@
                             <ColumnDefinition Width="18" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <FontIcon Grid.Column="0" Glyph="&#xE7C1;" FontSize="16" Foreground="#5E6AD2"
+                        <FontIcon Grid.Column="0" Glyph="&#xE7C1;" FontSize="16" Foreground="#6E7178"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="持仓" VerticalAlignment="Center" />
                     </Grid>
@@ -83,7 +83,7 @@
                             <ColumnDefinition Width="18" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <FontIcon Grid.Column="0" Glyph="&#xE9D2;" FontSize="16" Foreground="#5E6AD2"
+                        <FontIcon Grid.Column="0" Glyph="&#xE9D2;" FontSize="16" Foreground="#6E7178"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1" Text="分析" VerticalAlignment="Center" />
                     </Grid>
